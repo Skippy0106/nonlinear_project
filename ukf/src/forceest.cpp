@@ -22,24 +22,13 @@ Eigen::MatrixXd forceest::  dynamics(Eigen::MatrixXd sigma_state)
 		double ey = sigma_state(e_y,i);
 		double ez = sigma_state(e_z,i);
 
-		double omegax = sigma_state(omega_x,i);
-		double omegay = sigma_state(omega_y,i);
-		double omegaz = sigma_state(omega_z,i);
+		double F1x = sigma_state(F1_x,i)+ gausian_noise(0)  ;
+		double F1y = sigma_state(F1_y,i)+ gausian_noise(1)  ;
+		double F1z = sigma_state(F1_z,i)+ gausian_noise(2)  ;
+		double F2x = sigma_state(F2_x,i)+ gausian_noise(0)  ;
+		double F2y = sigma_state(F2_y,i)+ gausian_noise(1)  ;
+		double F2z = sigma_state(F2_z,i)+ gausian_noise(2)  ;
 
-		double ax = sigma_state(a_x,i);
-		double ay = sigma_state(a_y,i);
-		double az = sigma_state(a_z,i);
-
-
-		double Fx = sigma_state(F_x,i)+ gausian_noise(0)  ;
-
-		double Fy = sigma_state(F_y,i) + gausian_noise(1) ;
-		double Fz = sigma_state(F_z,i) + gausian_noise(2) ;
-		double tauz = sigma_state(tau_z,i);
-
-		double betax = sigma_state(beta_x,i);
-		double betay = sigma_state(beta_y,i);
-		double betaz = sigma_state(beta_z,i);
 
 		double a;
 		double f;
@@ -60,26 +49,30 @@ Eigen::MatrixXd forceest::  dynamics(Eigen::MatrixXd sigma_state)
 		double delta_t;
 
 		Eigen::Vector3d v_k1,v_k;
-		Eigen::Vector3d thrust_v;
-		Eigen::Vector3d gravity, F_v;
+		//Eigen::Vector3d thrust_v;
+		//Eigen::Vector3d gravity, F_v;
+		Eigen::Vector3d gravity,F1_v,F2_v;
 		Eigen::Matrix3d J;
-		Eigen::Vector3d omega_v, omega_v1;
-		Eigen::Vector3d torque_v;
+		//Eigen::Vector3d omega_v, omega_v1;
+		//Eigen::Vector3d torque_v;
 		Eigen::Vector3d p_v;
 		Eigen::Vector3d p_v1;
 		Eigen::Vector3d beta;
 		double omega_value;
-		const double m = 1.50;
+		//const double m = 1.50;
+		const double m = 0.30;
 		Eigen::Vector3d thrust_test;
 		v_k << vx, vy, vz;
-		thrust_v << 0, 0, thrust;
+		//thrust_v << 0, 0, thrust;
 		gravity << 0, 0, 9.81;
-		F_v << Fx, Fy, Fz;
+		//F_v << Fx, Fy, Fz;
+		F1_v <<F1x,F1y,F1z;
+		F2_v <<F2x,F2y,F2z;
 		J << 0.0625, 0, 0,  //0.0625,0.0625,0.12656
 		0, 0.0625, 0,
 		0, 0, 0.12656;
-		omega_v << omegax, omegay, omegaz;
-		torque_v << 0, 0, tauz;
+		//omega_v << omegax, omegay, omegaz;
+		//torque_v << 0, 0, tauz;
 		//beta << betax, betay, betaz;
 		//USQUE
 		delta_p << ex, ey, ez;
@@ -108,29 +101,6 @@ Eigen::MatrixXd forceest::  dynamics(Eigen::MatrixXd sigma_state)
 			      -delta_q3(0), -delta_q3(1), -delta_q3(2), delta_q4;
 			q_k_sigma = phi_q * last_quat;
 		}
-
-
-
-		//The quaternions are subsequently propagated forward in time using
-
-		if(omegax == 0) {
-			omegax = 0.0001;
-		}
-		if(omegay == 0) {
-			omegay = 0.0001;
-		}
-		if(omegaz ==0) {
-			omegaz = 0.0001;
-		}
-
-		omega_value = omegax*omegax+omegay*omegay+omegaz*omegaz;
-		omega << cos(0.5*sqrt(omega_value)*delta_t), sin(0.5*sqrt(omega_value)*delta_t)*omegaz/(sqrt(omega_value)), -sin(0.5*sqrt(omega_value)*delta_t)*omegay/(sqrt(omega_value)), sin(0.5*sqrt(omega_value)*delta_t)*omegax/(sqrt(omega_value)),
-		      -sin(0.5*sqrt(omega_value)*delta_t)*omegaz/(sqrt(omega_value)), cos(0.5*sqrt(omega_value)*delta_t), sin(0.5*sqrt(omega_value)*delta_t)*omegax/(sqrt(omega_value)), sin(0.5*sqrt(omega_value)*delta_t)*omegay/(sqrt(omega_value)),
-		      sin(0.5*sqrt(omega_value)*delta_t)*omegay/(sqrt(omega_value)), -sin(0.5*sqrt(omega_value)*delta_t)*omegax/(sqrt(omega_value)), cos(0.5*sqrt(omega_value)*delta_t), sin(0.5*sqrt(omega_value)*delta_t)*omegaz/(sqrt(omega_value)),
-		      -sin(0.5*sqrt(omega_value)*delta_t)*omegax/(sqrt(omega_value)), -sin(0.5*sqrt(omega_value)*delta_t)*omegay/(sqrt(omega_value)), -sin(0.5*sqrt(omega_value)*delta_t)*omegaz/(sqrt(omega_value)), cos(0.5*sqrt(omega_value)*delta_t);
-		q_k1_sigma = omega * q_k_sigma;
-
-
 
 		if(i==0) {
 			qk1 = q_k1_sigma; // 第0個sigma point,會丟進去correct
@@ -190,17 +160,9 @@ Eigen::MatrixXd forceest::  dynamics(Eigen::MatrixXd sigma_state)
 		p_v1 = p_v + delta_t * v_k;
 
 		//velocity
-
-		Eigen::Vector3d pseudo_a =  ((R_IB*(thrust_v))/m - gravity + F_v/m);
-		Eigen::Vector3d pseudo_b;
-		pseudo_b <<a_x,a_y,a_z;
-		double alpha=0.00;
-		v_k1 = v_k + delta_t * ( (1-alpha) *pseudo_a+ (alpha)*pseudo_b  )  ;
-
+		Eigen::Vector3d pseudo_a =  ((-(F1_v+F2_v)/m)+gravity);
+		v_k1 = v_k + delta_t*pseudo_a;
 		//rotation
-
-		omega_v1 = omega_v + delta_t * J.inverse()*(U + torque_v - omega_v.cross(J*omega_v));
-
 		//
 
 
@@ -211,29 +173,16 @@ Eigen::MatrixXd forceest::  dynamics(Eigen::MatrixXd sigma_state)
 		predict_sigma_state(p_x,i) = p_v1(0);
 		predict_sigma_state(p_y,i) = p_v1(1);
 		predict_sigma_state(p_z,i) = p_v1(2);
-
-		predict_sigma_state(F_x,i) = Fx;
-		predict_sigma_state(F_y,i) = Fy;
-		predict_sigma_state(F_z,i) = Fz;
-		predict_sigma_state(tau_z,i) = tauz;
+		predict_sigma_state(F1_x,i) = F1x;
+		predict_sigma_state(F1_y,i) = F1y;
+		predict_sigma_state(F1_z,i) = F1z;
+		predict_sigma_state(F2_x,i) = F2x;
+		predict_sigma_state(F2_y,i) = F2y;
+		predict_sigma_state(F2_z,i) = F2z;
 
 		predict_sigma_state(v_x,i) = v_k1(0);
 		predict_sigma_state(v_y,i) = v_k1(1);
 		predict_sigma_state(v_z,i) = v_k1(2);
-
-		predict_sigma_state(omega_x,i) = omega_v1(0);
-		predict_sigma_state(omega_y,i) = omega_v1(1);
-		predict_sigma_state(omega_z,i) = omega_v1(2);
-
-
-		predict_sigma_state(beta_x,i) = betax;
-		predict_sigma_state(beta_y,i) = betay;
-		predict_sigma_state(beta_z,i) = betaz;
-
-		predict_sigma_state(a_x,i) = a_x;
-		predict_sigma_state(a_y,i) = a_y;
-		predict_sigma_state(a_z,i) = a_z;
-
 
 	}
 	return predict_sigma_state;
@@ -261,19 +210,6 @@ Eigen::MatrixXd forceest::state_to_measure(Eigen::MatrixXd sigma_state)
 		predict_sigma_measure( me_z,i) =   sigma_state(e_z,i);
 
 
-		predict_sigma_measure( momega_x,i) =   sigma_state(omega_x,i);
-		predict_sigma_measure( momega_y,i) =   sigma_state(omega_y,i);
-		predict_sigma_measure( momega_z,i) =   sigma_state(omega_z,i);
-
-		predict_sigma_measure( ma_x,i) =   sigma_state(a_x,i);
-		predict_sigma_measure( ma_y,i) =   sigma_state(a_y,i);
-		predict_sigma_measure( ma_z,i) =   sigma_state(a_z,i);
-
-		/*
-		        predict_sigma_measure( mq_x ,i) =   sigma_state(q_x,i);
-		        predict_sigma_measure( mq_y ,i) =   sigma_state(q_y,i);
-		        predict_sigma_measure( mq_z ,i) =   sigma_state(q_z,i);
-		*/
 	}
 	return predict_sigma_measure;
 
